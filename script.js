@@ -14,8 +14,8 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // ⚠️ СЮДА НУЖНО БУДЕТ ВСТАВИТЬ НОВУЮ ССЫЛКУ ИЗ CLOUDFLARE ⚠️
-    const WORKER_URL = 'https://ЗДЕСЬ_БУДЕТ_НОВЫЙ_ВОРКЕР';
+    // ⚠️ СЮДА ПОТОМ ВСТАВИМ ССЫЛКУ НОВОГО ВОРКЕРА ⚠️
+    const WORKER_URL = 'https://crm-facebook.brelok2023.workers.dev'; // Пока старая для примера
 
     // 3. --- ЭЛЕМЕНТЫ ---
     const form = document.getElementById('crmOrderForm');
@@ -24,6 +24,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const statusMessage = document.getElementById('statusMessage');
     const totalSummaryEl = document.getElementById('totalSummary');
     const extraChargeInput = document.getElementById('extraCharge');
+    
+    // Ссылка
     const linkContainer = document.getElementById('orderLinkContainer');
     const linkInput = document.getElementById('generatedLink');
     const copyBtn = document.getElementById('copyLinkBtn');
@@ -33,15 +35,26 @@ document.addEventListener('DOMContentLoaded', () => {
     const customPrepaymentInput = document.getElementById('customPrepaymentAmount');
     const customPrepaymentRadio = document.getElementById('payment-custom');
 
-    // 4. --- СЛУШАТЕЛИ ---
+    // 4. --- СЛУШАТЕЛИ (ИСПРАВЛЕННЫЕ) ---
     function setupEventListeners() {
-        productList.addEventListener('click', handleProductInteraction);
+        
+        // ГЛАВНОЕ ИСПРАВЛЕНИЕ: Слушаем изменение галочки
+        productList.addEventListener('change', (e) => {
+            if (e.target.classList.contains('product-checkbox')) {
+                const item = e.target.closest('.product-item');
+                updateItemState(item);
+                updateTotalSummary();
+            }
+        });
+
+        // Слушаем ввод количества (пересчет цены)
         productList.addEventListener('input', (e) => {
             if (e.target.classList.contains('qty-input')) updateTotalSummary();
         });
         
         extraChargeInput.addEventListener('input', updateTotalSummary);
         
+        // Логика оплаты (радиокнопки)
         paymentOptionsContainer.addEventListener('change', (e) => {
             if (e.target.name === 'payment') {
                 if (customPrepaymentRadio.checked) {
@@ -54,6 +67,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
+        // Кнопка копирования ссылки
         if(copyBtn) {
             copyBtn.addEventListener('click', () => {
                 if(!linkInput.value) return;
@@ -65,23 +79,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Обработка кликов (Включение/Выключение товара)
-    function handleProductInteraction(e) {
-        // Если кликнули по инпуту количества - не трогаем чекбокс
-        if (e.target.classList.contains('qty-input')) return;
-
-        const item = e.target.closest('.product-item');
-        if (!item) return;
-
-        const checkbox = item.querySelector('.product-checkbox');
-        // Переключаем чекбокс, если клик был не по нему самому
-        if (e.target !== checkbox && e.target.tagName !== 'INPUT') {
-            checkbox.checked = !checkbox.checked;
-        }
-        updateItemState(item);
-        updateTotalSummary();
-    }
-
+    // Красит рамочку и включает поле количества
     function updateItemState(item) {
         const checkbox = item.querySelector('.product-checkbox');
         const qtyInput = item.querySelector('.qty-input');
@@ -89,10 +87,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if (checkbox.checked) {
             item.classList.add('selected');
             qtyInput.disabled = false;
+            // Если там пусто или 0, ставим 1
+            if (qtyInput.value == "" || qtyInput.value == "0") {
+                qtyInput.value = "1";
+            }
         } else {
             item.classList.remove('selected');
             qtyInput.disabled = true;
-            qtyInput.value = '1';
+            qtyInput.value = '1'; // Сброс
         }
     }
 
@@ -109,6 +111,8 @@ document.addEventListener('DOMContentLoaded', () => {
         
         total += parseFloat(extraChargeInput.value) || 0;
         totalSummaryEl.textContent = `Загальна Сума: ${total.toFixed(2)} грн`;
+        
+        // Кнопку включаем только если что-то выбрали
         sendButton.disabled = !hasItems;
     }
 
@@ -124,14 +128,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const isUrgent = document.getElementById('markRed').checked;
         const comment = document.getElementById('orderComment').value;
 
-        // СБОР ТОВАРОВ (НОВЫЙ ФОРМАТ)
+        // СБОР ТОВАРОВ
         let selectedItems = [];
         
         document.querySelectorAll('.product-item.selected').forEach(item => {
-            const name = item.dataset.name; // Берем точное название (101роза)
+            const name = item.dataset.name; 
             const qty = item.querySelector('.qty-input').value;
             
-            // Если 1 шт - просто имя, если больше - имя (x5)
             if (qty > 1) {
                 selectedItems.push(`${name} (x${qty})`);
             } else {
@@ -139,7 +142,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        // Собираем всё в одну строку для таблицы
         const allItemsString = selectedItems.join(' + ');
 
         const paymentMethodRadio = document.querySelector('input[name="payment"]:checked');
@@ -156,11 +158,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const payload = {
             order_id: orderId,
             Ник: clientFacebook,
-            fb_id: "", // Оставляем пустым, раз ты убрал поле
+            fb_id: "", 
             isUrgent: isUrgent,
-            // ВАЖНО: Всё пишем в одно поле, так как в Google Script мы объединили логику
             Заказ_жетон: allItemsString, 
-            Доп_товары: "", // Можно оставить пустым
+            Доп_товары: "", 
             Предоплата: prepayment,
             extraCharge: parseFloat(extraChargeInput.value) || 0,
             comment: comment
@@ -178,19 +179,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 statusMessage.textContent = `✅ Заказ ${orderId} створено!`;
                 statusMessage.style.color = '#007bff';
                 
-                // Сброс формы
                 form.reset();
+                // Сбрасываем визуальное выделение
                 document.querySelectorAll('.product-item').forEach(item => {
                     item.querySelector('.product-checkbox').checked = false;
                     updateItemState(item);
                 });
                 updateTotalSummary();
 
-                // Генерация ссылки (ВНИМАНИЕ: тут надо будет поменять на твой новый домен доставки)
                 setTimeout(() => {
-                    // Пока оставляю старый домен, поменяем когда сделаем сайт доставки
+                    // Сюда потом вставим твой новый сайт доставки
                     const fullLink = `https://dostavkagravochka.github.io/index.html?id=${orderId}`;
-                    linkInput.value = "Заповніть будь-ласка тут, дані для доставки: " + fullLink;
+                    linkInput.value = "Заповніть дані доставки: " + fullLink;
                     linkContainer.style.display = 'block';
                 }, 500);
 
@@ -199,7 +199,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (error) {
             console.error(error);
-            alert('Помилка з\'єднання. Перевірте Worker URL.');
+            alert('Помилка з\'єднання. Worker URL не настроен.');
         } finally {
             sendButton.disabled = false;
             sendButton.innerHTML = '<i class="fas fa-paper-plane"></i> Сформувати Замовлення';
