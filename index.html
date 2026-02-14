@@ -302,10 +302,17 @@
         <div class="input-group">
             <input type="number" id="extraCharge" placeholder="Доп. Доходи/Розходи">
         </div>
-
-        <div class="input-group">
-            <input type="text" id="orderComment" placeholder="Коментар (буде в статусі)">
-        </div>
+        
+        <div class="input-group comment-with-photo">
+    <div class="comment-wrapper">
+        <input type="text" id="orderComment" placeholder="Коментар (буде в статусі)">
+        <label for="photo-upload" class="photo-btn" id="photo-label" title="Завантажити фото">
+            <i class="fas fa-camera"></i>
+            <input type="file" id="photo-upload" accept="image/*" hidden onchange="handleFileSelect(this)">
+        </label>
+    </div>
+    <div id="file-status" class="file-info" style="display: none;">✅ Фото вибрано</div>
+</div>
         
         </section>
 
