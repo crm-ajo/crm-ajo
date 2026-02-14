@@ -1,5 +1,9 @@
 document.addEventListener('DOMContentLoaded', () => {
     
+    // Переменные для хранения фото
+    let base64ImageData = "";
+    let imageMimeType = "";
+
     // 1. --- ЛОГИКА ВКЛАДОК ---
     const tabButtons = document.querySelectorAll('.tab-btn');
     const tabContents = document.querySelectorAll('.tab-content');
@@ -14,8 +18,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // ⚠️ СЮДА ПОТОМ ВСТАВИМ ССЫЛКУ НОВОГО ВОРКЕРА ⚠️
-    const WORKER_URL = 'https://crm-ajo.brelok2023.workers.dev'; // Пока старая для примера
+    const WORKER_URL = 'https://crm-ajo.brelok2023.workers.dev';
 
     // 3. --- ЭЛЕМЕНТЫ ---
     const form = document.getElementById('crmOrderForm');
@@ -24,21 +27,32 @@ document.addEventListener('DOMContentLoaded', () => {
     const statusMessage = document.getElementById('statusMessage');
     const totalSummaryEl = document.getElementById('totalSummary');
     const extraChargeInput = document.getElementById('extraCharge');
-    
-    // Ссылка
     const linkContainer = document.getElementById('orderLinkContainer');
     const linkInput = document.getElementById('generatedLink');
     const copyBtn = document.getElementById('copyLinkBtn');
-    
-    // Оплата
     const paymentOptionsContainer = document.querySelector('.radio-group');
     const customPrepaymentInput = document.getElementById('customPrepaymentAmount');
     const customPrepaymentRadio = document.getElementById('payment-custom');
 
-    // 4. --- СЛУШАТЕЛИ (ИСПРАВЛЕННЫЕ) ---
+    // --- НОВАЯ ФУНКЦИЯ ВЫБОРА ФОТО ---
+    window.handleFileSelect = function(input) {
+        const file = input.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                base64ImageData = e.target.result.split(",")[1];
+                imageMimeType = file.type;
+                
+                // Визуальный отклик
+                const label = document.getElementById('photo-label');
+                label.classList.add('success');
+                document.getElementById('file-status').style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
     function setupEventListeners() {
-        
-        // ГЛАВНОЕ ИСПРАВЛЕНИЕ: Слушаем изменение галочки
         productList.addEventListener('change', (e) => {
             if (e.target.classList.contains('product-checkbox')) {
                 const item = e.target.closest('.product-item');
@@ -47,14 +61,12 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        // Слушаем ввод количества (пересчет цены)
         productList.addEventListener('input', (e) => {
             if (e.target.classList.contains('qty-input')) updateTotalSummary();
         });
         
         extraChargeInput.addEventListener('input', updateTotalSummary);
         
-        // Логика оплаты (радиокнопки)
         paymentOptionsContainer.addEventListener('change', (e) => {
             if (e.target.name === 'payment') {
                 if (customPrepaymentRadio.checked) {
@@ -67,7 +79,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        // Кнопка копирования ссылки
         if(copyBtn) {
             copyBtn.addEventListener('click', () => {
                 if(!linkInput.value) return;
@@ -79,48 +90,37 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Красит рамочку и включает поле количества
     function updateItemState(item) {
         const checkbox = item.querySelector('.product-checkbox');
         const qtyInput = item.querySelector('.qty-input');
-        
         if (checkbox.checked) {
             item.classList.add('selected');
             qtyInput.disabled = false;
-            // Если там пусто или 0, ставим 1
-            if (qtyInput.value == "" || qtyInput.value == "0") {
-                qtyInput.value = "1";
-            }
+            if (qtyInput.value == "" || qtyInput.value == "0") qtyInput.value = "1";
         } else {
             item.classList.remove('selected');
             qtyInput.disabled = true;
-            qtyInput.value = '1'; // Сброс
+            qtyInput.value = '1';
         }
     }
 
     function updateTotalSummary() {
         let total = 0;
         let hasItems = false;
-        
         document.querySelectorAll('.product-item.selected').forEach(item => {
             const price = parseFloat(item.dataset.price);
             const qty = parseInt(item.querySelector('.qty-input').value) || 1;
             total += (price * qty);
             hasItems = true;
         });
-        
         total += parseFloat(extraChargeInput.value) || 0;
         totalSummaryEl.textContent = `Загальна Сума: ${total.toFixed(2)} грн`;
-        
-        // Кнопку включаем только если что-то выбрали
         sendButton.disabled = !hasItems;
     }
 
-    // --- ОТПРАВКА ---
     async function submitForm(e) {
         e.preventDefault();
         linkContainer.style.display = 'none';
-        
         sendButton.disabled = true;
         sendButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Відправка...';
         
@@ -128,22 +128,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const isUrgent = document.getElementById('markRed').checked;
         const comment = document.getElementById('orderComment').value;
 
-        // СБОР ТОВАРОВ
         let selectedItems = [];
-        
         document.querySelectorAll('.product-item.selected').forEach(item => {
             const name = item.dataset.name; 
             const qty = item.querySelector('.qty-input').value;
-            
-            if (qty > 1) {
-                selectedItems.push(`${name} (x${qty})`);
-            } else {
-                selectedItems.push(name);
-            }
+            selectedItems.push(qty > 1 ? `${name} (x${qty})` : name);
         });
 
         const allItemsString = selectedItems.join(' + ');
-
         const paymentMethodRadio = document.querySelector('input[name="payment"]:checked');
         let prepayment = 0;
         const totalAmount = parseFloat(totalSummaryEl.textContent.match(/[\d\.]+/)[0]);
@@ -155,6 +147,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const orderId = 'ORD-' + Math.floor(100000 + Math.random() * 900000);
 
+        // --- ДОБАВЛЕНО imageData И imageMime В PAYLOAD ---
         const payload = {
             order_id: orderId,
             Ник: clientFacebook,
@@ -164,7 +157,9 @@ document.addEventListener('DOMContentLoaded', () => {
             Доп_товары: "", 
             Предоплата: prepayment,
             extraCharge: parseFloat(extraChargeInput.value) || 0,
-            comment: comment
+            comment: comment,
+            imageData: base64ImageData, // САМО ФОТО
+            imageMime: imageMimeType    // ТИП ФАЙЛА
         };
 
         try {
@@ -180,7 +175,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 statusMessage.style.color = '#007bff';
                 
                 form.reset();
-                // Сбрасываем визуальное выделение
+                // Сброс фото данных
+                base64ImageData = "";
+                imageMimeType = "";
+                document.getElementById('photo-label').classList.remove('success');
+                document.getElementById('file-status').style.display = 'none';
+
                 document.querySelectorAll('.product-item').forEach(item => {
                     item.querySelector('.product-checkbox').checked = false;
                     updateItemState(item);
@@ -188,9 +188,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 updateTotalSummary();
 
                 setTimeout(() => {
-                    // Сюда потом вставим твой новый сайт доставки
-                    const fullLink = `https://dostavkagravochka.github.io/index.html?id=${orderId}`;
-                    linkInput.value = "Заповніть дані доставки: " + fullLink;
+                    const fullLink = `https://ajodostavka.github.io/index.html?id=${orderId}`;
+                    linkInput.value = "Заповніть будь-ласка тут, дані для доставки щоб пришвидшити процес,або просто скиньте у чат:👍🌸 " + fullLink;
                     linkContainer.style.display = 'block';
                 }, 500);
 
@@ -199,7 +198,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (error) {
             console.error(error);
-            alert('Помилка з\'єднання. Worker URL не настроен.');
+            alert('Помилка з\'єднання.');
         } finally {
             sendButton.disabled = false;
             sendButton.innerHTML = '<i class="fas fa-paper-plane"></i> Сформувати Замовлення';
