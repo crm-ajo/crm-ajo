@@ -127,6 +127,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const clientFacebook = document.getElementById('clientFacebook').value.trim();
         const isUrgent = document.getElementById('markRed').checked;
         const comment = document.getElementById('orderComment').value;
+        const isOpt = document.getElementById('markOpt').checked; // Добавить это
 
         let selectedItems = [];
         document.querySelectorAll('.product-item.selected').forEach(item => {
@@ -153,6 +154,7 @@ document.addEventListener('DOMContentLoaded', () => {
             Ник: clientFacebook,
             fb_id: "", 
             isUrgent: isUrgent,
+            isOpt: isOpt,
             Заказ_жетон: allItemsString, 
             Доп_товары: "", 
             Предоплата: prepayment,
