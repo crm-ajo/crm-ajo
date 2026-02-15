@@ -282,6 +282,10 @@
                     <input type="checkbox" id="markRed">
                     <span class="urgent-label" title="Позначити терміновим (!)">⚠️</span>
                 </label>
+                 <label for="markOpt" class="opt-toggle" style="margin-left: 5px;">
+                 <input type="checkbox" id="markOpt">
+                 <span class="opt-label" title="Оптове замовлення">ОПТ</span>
+                 </label>
             </div>
         </div>
 
@@ -290,10 +294,10 @@
             <div class="radio-group">
                 <label><input type="radio" id="payment-prepay150" name="payment" value="Передплата 150 грн" required checked>Передплата 150 грн</label>
                 <label><input type="radio" id="payment-prepay250" name="payment" value="Передплата 250 грн">Передплата 250 грн</label>
-                <label><input type="radio" id="payment-cod" name="payment" value="Накладений платіж">Накладений платіж</label>
+                <label><input type="radio" id="payment-cod" name="payment" value="Передплата 350">Передплата 350 грн</label>
                 <label><input type="radio" id="payment-full" name="payment" value="Повна оплата">Повна оплата</label>
                 <label>
-                    <input type="radio" id="payment-custom" name="payment" value="custom">Друга сума:
+                    <input type="radio" id="payment-custom" name="payment" value="custom">ДругаПередплата:
                     <input type="number" id="customPrepaymentAmount" placeholder="сума" disabled style="width: 100px; margin-left: 8px;">
                 </label>
             </div>
@@ -305,7 +309,7 @@
         
         <div class="input-group comment-with-photo">
     <div class="comment-wrapper">
-        <input type="text" id="orderComment" placeholder="Коментар (буде в статусі)">
+        <input type="text" id="orderComment" placeholder="Коментар до замовлення">
         <label for="photo-upload" class="photo-btn" id="photo-label" title="Завантажити фото">
             <i class="fas fa-camera"></i>
             <input type="file" id="photo-upload" accept="image/*" hidden onchange="handleFileSelect(this)">
